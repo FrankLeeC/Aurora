@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,6 +21,17 @@ func s() {
 		fmt.Println(s)
 		s, _ = url.QueryUnescape(r.URL.Path)
 		fmt.Println(s)
+		b, _ := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+		fmt.Println(string(b))
+		b, _ = ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		fmt.Println(string(b))
+		// r.ParseForm()
+		// fmt.Println(r.Form)
+		// r.ParseForm()
+		// fmt.Println(r.Form)
 
 	})
 	http.ListenAndServe(":9090", nil)
