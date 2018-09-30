@@ -47,12 +47,14 @@ type Response struct {
 	b            []byte
 	rw           http.ResponseWriter
 	code         int
+	writeBytes   bool
 	writeCode    bool
 	returnedCode uint
 	err          error
 }
 
 func (a *Response) Write(b []byte) {
+	a.writeBytes = true
 	if a.b == nil {
 		a.b = make([]byte, 0, 1024)
 	}
@@ -73,10 +75,13 @@ func (a *Response) Byte() []byte {
 }
 
 func defaultNotFound(rsp *Response, req *Request) (uint, error) {
+	rsp.WriteHeader(404)
+	rsp.Write([]byte(`page not found`))
 	return 404, nil
 }
 
 type handler struct {
+	notFound            func(rsp *Response, req *Request) (uint, error)
 	plainFilters        map[string][]Filter
 	regexFilters        map[string][]Filter
 	sortedFilterPattern []string // regex string
@@ -94,6 +99,7 @@ type handler struct {
 
 func newHandler() *handler {
 	return &handler{
+		notFound:      defaultNotFound,
 		plainFilters:  make(map[string][]Filter),
 		regexFilters:  make(map[string][]Filter),
 		plainHandlers: make(map[string]func(rsp *Response, req *Request) (uint, error)),
@@ -256,13 +262,21 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		handlerRegex, handlerParams, h = a.matchRegexpHandler(url)
 	}
 
-	req := &Request{req: r}
+	req := &Request{req: r, DynamicParams: make(map[string]string)}
 	rsp := &Response{rw: rw}
 
 	if filters != nil && len(filters) > 0 {
-		values := filterRegex.FindStringSubmatch(url)
-		for i := range values {
-			req.DynamicParams[filterParams[i]] = values[i]
+		if filterRegex != nil {
+			tmp := filterRegex.FindStringSubmatch(url)
+			values := make([]string, 0)
+			if len(tmp) > 1 {
+				for i := 1; i < len(tmp); i++ {
+					values = append(values, tmp[i])
+				}
+			}
+			for i := range values {
+				req.DynamicParams[filterParams[i]] = values[i]
+			}
 		}
 
 		for _, f := range filters {
@@ -273,13 +287,23 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if h != nil {
-		values := handlerRegex.FindStringSubmatch(url)
-		for i := range values {
-			if _, c := req.DynamicParams[handlerParams[i]]; !c {
-				req.DynamicParams[handlerParams[i]] = values[i]
+		if handlerRegex != nil {
+			tmp := handlerRegex.FindStringSubmatch(url)
+			values := make([]string, 0)
+			if len(tmp) > 1 {
+				for i := 1; i < len(tmp); i++ {
+					values = append(values, tmp[i])
+				}
+			}
+			for i := range values {
+				if _, c := req.DynamicParams[handlerParams[i]]; !c {
+					req.DynamicParams[handlerParams[i]] = values[i]
+				}
 			}
 		}
 		rsp.returnedCode, rsp.err = h(rsp, req)
+	} else {
+		rsp.returnedCode, rsp.err = a.notFound(rsp, req)
 	}
 
 	if filters != nil && len(filters) > 0 {
@@ -292,7 +316,10 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		rsp.rw.WriteHeader(rsp.code)
 	}
 
-	rsp.rw.Write(rsp.b)
+	if rsp.writeBytes {
+		rsp.rw.Write(rsp.b)
+	}
+
 }
 
 func NewHTTPServer(port int) *HTTPServer {
@@ -329,7 +356,12 @@ func (a *HTTPServer) Filter(path string, f Filter) {
 	a.defaultHandler.filter(path, f)
 }
 
+func (a *HTTPServer) NotFound(f func(rsp *Response, req *Request) (uint, error)) {
+	a.defaultHandler.notFound = f
+}
+
 func (a *HTTPServer) ServeHTTP() {
+	a.defaultHandler.prepare()
 	if !a.block {
 		go func() {
 			a.doServeHTTP()
@@ -340,6 +372,7 @@ func (a *HTTPServer) ServeHTTP() {
 }
 
 func (a *HTTPServer) ServeHTTPS(certFile, keyFile string) {
+	a.defaultHandler.prepare()
 	if !a.block {
 		go func() {
 			a.doServeHTTPS(certFile, keyFile)

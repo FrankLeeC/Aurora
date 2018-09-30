@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"regexp"
 	"syscall"
 
 	"github.com/FrankLeeC/Aurora/httpserver"
@@ -15,7 +14,7 @@ func main() {
 	s := httpserver.NewHTTPServer(9090)
 	s.Route("/test", test)
 	s.Route("/ok", ok)
-	s.AddPatternFilter(regexp.MustCompile("/.*"), &testFilter{})
+	s.DynamicFilter("/{url}", &testFilter{})
 	s.Finish(func(e error) {
 		fmt.Printf("close server error: %v\n", e)
 	})
