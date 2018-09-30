@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	// s()
+	s()
 	// testRegexp()
-	a()
+	// a()
 }
 
 func s() {

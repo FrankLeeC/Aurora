@@ -39,7 +39,7 @@ type Filter interface {
 }
 
 type Request struct {
-	req           *http.Request
+	*http.Request
 	DynamicParams map[string]string
 }
 
@@ -262,7 +262,7 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		handlerRegex, handlerParams, h = a.matchRegexpHandler(url)
 	}
 
-	req := &Request{req: r, DynamicParams: make(map[string]string)}
+	req := &Request{r, make(map[string]string)}
 	rsp := &Response{rw: rw}
 
 	if filters != nil && len(filters) > 0 {
