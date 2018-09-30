@@ -27,12 +27,12 @@ func main() {
 	s.Shutdown()
 }
 
-func test(rsp *httpserver.Response, req *httpserver.Request) (int, error) {
+func test(rsp *httpserver.Response, req *httpserver.Request) (uint, error) {
 	rsp.Write([]byte("test"))
 	return http.StatusOK, nil
 }
 
-func ok(rsp *httpserver.Response, req *httpserver.Request) (int, error) {
+func ok(rsp *httpserver.Response, req *httpserver.Request) (uint, error) {
 	rsp.Write([]byte("ok"))
 	return http.StatusOK, nil
 }
