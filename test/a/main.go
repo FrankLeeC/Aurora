@@ -9,7 +9,8 @@ import (
 
 func main() {
 	// s()
-	testRegexp()
+	// testRegexp()
+	a()
 }
 
 func s() {
@@ -25,16 +26,22 @@ func s() {
 }
 
 func a() {
-	s := `/a/b/{id}/c/{p}`
+	s := `/a/b/{id3}/c/{p}`
 	re := regexp.MustCompile(`({\w+})`)
 	params := re.FindAllString(s, -1)
+	for i := range params {
+		params[i] = params[i][1 : len(params[i])-1]
+	}
 	fmt.Println(params)
-	s = re.ReplaceAllString(s, `[^/]+`)
+	s = "^" + re.ReplaceAllString(s, `([^/]+)`) + "$"
 	fmt.Println(s)
+	test := `/a/b/12common/c/678`
+	re2 := regexp.MustCompile(s)
+	fmt.Println(re2.MatchString(test), re2.FindStringSubmatch(test))
 }
 
 func testRegexp() {
-	s := `/a/b/12common/c/678`
-	re := regexp.MustCompile(`^/a/b/([^/]*)/c/6([^/]*)$`)
+	s := `/a/b/12/common/c/678`
+	re := regexp.MustCompile(`^/a/b/([^/]+)/c/6([^/]+)$`)
 	fmt.Println(re.MatchString(s), re.FindStringSubmatch(s))
 }
