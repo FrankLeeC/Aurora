@@ -66,7 +66,6 @@ func (a *Response) WriteHeader(statusCode int) {
 }
 
 func (a *Response) Byte() []byte {
-	rsp.Write([]byte("page not found"))
 	return a.b
 }
 
@@ -76,22 +75,112 @@ func defaultNotFound(rsp *Response, req *Request) (uint, error) {
 
 type handler struct {
 	plainFilters        map[string][]Filter
-	regexpFilters       map[string][]Filter
-	sortedFilterPattern []string
+	regexFilters        map[string][]Filter
+	sortedFilterPattern []string // regex string
+	sortedFilterRegex   []*regexp.Regexp
+	filterRegexPattern  map[string]string   // regex string -> raw pattern
+	filterPatternParams map[string][]string // raw pattern -> params
 
 	plainHandlers        map[string]func(rsp *Response, req *Request) (uint, error)
-	regexpHandlers       map[string]func(rsp *Response, req *Request) (uint, error) // raw pattern -> func
-	sortedHandlerPattern []string                                                   // regexp string
-	sortedHandlerRegexp  []regexp.Regexp
-	regexpHandlerPattern map[string]string   // regexp string -> raw pattern
-	params               map[string][]string // raw pattern -> params
+	regexHandlers        map[string]func(rsp *Response, req *Request) (uint, error) // raw pattern -> func
+	sortedHandlerPattern []string                                                   // regex string
+	sortedHandlerRegex   []*regexp.Regexp
+	handlerRegexPattern  map[string]string   // regex string -> raw pattern
+	handlerPatternParams map[string][]string // raw pattern -> params
+}
+
+func quicksort(a []string) {
+	if len(a) <= 1 {
+		return
+	}
+	i := 0
+	j := len(a) - 1
+	p := 0
+	for i <= j {
+		for j >= 0 {
+			if len(a[j]) > len(a[p]) {
+				a[j], a[p] = a[p], a[j]
+				p = j
+				j--
+				break
+			}
+			j--
+		}
+		for i <= j {
+			if len(a[i]) < len(a[p]) {
+				a[i], a[p] = a[p], a[i]
+				p = i
+				i++
+				break
+			}
+			i++
+		}
+	}
+	quicksort(a[0:p])
+	quicksort(a[p+1:])
+}
+
+func (a *handler) preparaHandlers() {
+	if len(a.regexHandlers) <= 0 {
+		return
+	}
+	preg := regexp.MustCompile(`({\w+})`)
+	a.handlerPatternParams = make(map[string][]string, len(a.regexHandlers))
+	a.handlerRegexPattern = make(map[string]string, len(a.regexHandlers))
+	a.sortedHandlerPattern = make([]string, 0, len(a.regexHandlers))
+
+	for rawPattern := range a.regexHandlers {
+		params := preg.FindAllString(rawPattern, -1)
+		if params != nil && len(params) > 0 {
+			for i := range params {
+				params[i] = params[i][1 : len(params[i])-1]
+			}
+			a.handlerPatternParams[rawPattern] = params
+			realRegex := "^" + preg.ReplaceAllString(rawPattern, `([^/]+)`) + "$"
+			a.handlerRegexPattern[realRegex] = rawPattern
+			a.sortedHandlerPattern = append(a.sortedHandlerPattern, realRegex)
+		} else {
+			a.plainHandlers[rawPattern] = a.regexHandlers[rawPattern]
+		}
+	}
+	quicksort(a.sortedHandlerPattern)
+	for _, realRegex := range a.sortedHandlerPattern {
+		a.sortedHandlerRegex = append(a.sortedHandlerRegex, regexp.MustCompile(realRegex))
+	}
+}
+
+func (a *handler) prepareFilters() {
+	if len(a.regexFilters) <= 0 {
+		return
+	}
+	preg := regexp.MustCompile(`({\w+})`)
+	a.filterPatternParams = make(map[string][]string, len(a.regexFilters))
+	a.filterRegexPattern = make(map[string]string, len(a.regexFilters))
+	a.sortedFilterPattern = make([]string, 0, len(a.regexFilters))
+
+	for rawPattern := range a.regexFilters {
+		params := preg.FindAllString(rawPattern, -1)
+		if params != nil && len(params) > 0 {
+			for i := range params {
+				params[i] = params[i][1 : len(params[i])-1]
+			}
+			a.filterPatternParams[rawPattern] = params
+			realRegex := "^" + preg.ReplaceAllString(rawPattern, `([^/]+)`) + "$"
+			a.filterRegexPattern[realRegex] = rawPattern
+			a.sortedFilterPattern = append(a.sortedFilterPattern, realRegex)
+		} else {
+			a.plainFilters[rawPattern] = a.regexFilters[rawPattern]
+		}
+	}
+	quicksort(a.sortedFilterPattern)
+	for _, realRegex := range a.sortedFilterPattern {
+		a.sortedFilterRegex = append(a.sortedFilterRegex, regexp.MustCompile(realRegex))
+	}
 }
 
 func (a *handler) prepare() {
-	s := ``
-	for regexpStr, _ := range a.regexpHandlers {
-
-	}
+	a.prepareFilters()
+	a.preparaHandlers()
 }
 
 func (a *handler) route(pattern string, f func(rsp *Response, req *Request) (uint, error)) {
@@ -99,7 +188,7 @@ func (a *handler) route(pattern string, f func(rsp *Response, req *Request) (uin
 }
 
 func (a *handler) matchPlainHandler(url string) func(rsp *Response, req *Request) (uint, error) {
-	for k, f := range a.handlers {
+	for k, f := range a.plainHandlers {
 		if k == url {
 			return f
 		}
@@ -108,9 +197,9 @@ func (a *handler) matchPlainHandler(url string) func(rsp *Response, req *Request
 }
 
 func (a *handler) matchRegexpHandler(url string) func(rsp *Response, req *Request) (uint, error) {
-	for i, pattern := range a.sortedRegexp {
+	for i, pattern := range a.sortedHandlerRegex {
 		if pattern.MatchString(url) {
-			return a.regexpHandlers[a.regexpPattern[a.sortedPattern[i]]]
+			return a.regexHandlers[a.handlerRegexPattern[a.sortedHandlerPattern[i]]]
 		}
 	}
 	return nil
