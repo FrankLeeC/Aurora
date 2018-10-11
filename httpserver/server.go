@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// Package httpserver this package provides a httpserver which supports dynamic route and filters
 package httpserver
 
 import (
@@ -33,16 +34,39 @@ import (
 	"strconv"
 )
 
+// Filter handler is surrounded by filter
+// `Before` works before handler function
+// `After` works after handler function
+// handler function will not work if any `Before` function returns false
 type Filter interface {
 	Before(rsp *Response, r *Request) bool
 	After(rsp *Response, r *Request)
 }
 
+// Request http request
+//
+// if you need to read req.Body twice, do as follows:
+//     b, err := ioutil.ReadAll(r.Body)
+//     r.Body.Close()  // don't forget to call Close
+//     r.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+//     fmt.Println(string(b))
+//     b, err = ioutil.ReadAll(r.Body)
+//     r.Body.Close()  // don't forget to call Close
+//     fmt.Println(string(b))
 type Request struct {
-	req           *http.Request
-	DynamicParams map[string]string
+	*http.Request
+	dynamicParams map[string]string
 }
 
+// GetDynamicParam get dynamic value in dynamic url
+func (a *Request) GetDynamicParam(k string) string {
+	if v, c := a.dynamicParams[k]; c {
+		return v
+	}
+	return ""
+}
+
+// Response http response
 type Response struct {
 	b            []byte
 	rw           http.ResponseWriter
@@ -53,29 +77,40 @@ type Response struct {
 	err          error
 }
 
+// Write write bytes
 func (a *Response) Write(b []byte) {
 	a.writeBytes = true
 	if a.b == nil {
-		a.b = make([]byte, 0, 1024)
+		a.b = make([]byte, 0, len(b))
 	}
 	a.b = append(a.b, b...)
 }
 
+// Header get response header
 func (a *Response) Header() http.Header {
 	return a.rw.Header()
 }
 
+// WriteHeader once you call this method, any future changes to response header will not work.
+// just like what net/http.ResponseWrite.WriteHeaer(int) does
 func (a *Response) WriteHeader(statusCode int) {
+	a.code = statusCode
+	a.rw.WriteHeader(statusCode)
+}
+
+// WriteStatusCode write status code
+func (a *Response) WriteStatusCode(statusCode int) {
 	a.code = statusCode
 	a.writeCode = true
 }
 
-func (a *Response) Byte() []byte {
+// Bytes get bytes you have writen
+func (a *Response) Bytes() []byte {
 	return a.b
 }
 
 func defaultNotFound(rsp *Response, req *Request) (uint, error) {
-	rsp.WriteHeader(404)
+	rsp.WriteStatusCode(404)
 	rsp.Write([]byte(`page not found`))
 	return 404, nil
 }
@@ -262,7 +297,7 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		handlerRegex, handlerParams, h = a.matchRegexpHandler(url)
 	}
 
-	req := &Request{req: r, DynamicParams: make(map[string]string)}
+	req := &Request{r, make(map[string]string)}
 	rsp := &Response{rw: rw}
 
 	if filters != nil && len(filters) > 0 {
@@ -275,7 +310,7 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				}
 			}
 			for i := range values {
-				req.DynamicParams[filterParams[i]] = values[i]
+				req.dynamicParams[filterParams[i]] = values[i]
 			}
 		}
 
@@ -296,8 +331,8 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				}
 			}
 			for i := range values {
-				if _, c := req.DynamicParams[handlerParams[i]]; !c {
-					req.DynamicParams[handlerParams[i]] = values[i]
+				if _, c := req.dynamicParams[handlerParams[i]]; !c {
+					req.dynamicParams[handlerParams[i]] = values[i]
 				}
 			}
 		}
@@ -322,6 +357,7 @@ func (a *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 }
 
+// NewHTTPServer return a httpserver which will bind on `port`
 func NewHTTPServer(port int) *HTTPServer {
 	h := newHandler()
 	http.Handle("/", h)
@@ -332,6 +368,7 @@ func NewHTTPServer(port int) *HTTPServer {
 	return &HTTPServer{s: s, defaultHandler: h, block: true}
 }
 
+// HTTPServer httpserver
 type HTTPServer struct {
 	s              *http.Server
 	defaultHandler *handler
@@ -340,26 +377,52 @@ type HTTPServer struct {
 	finish func(err error)
 }
 
+// Route register a handler function with a static urlpath
 func (a *HTTPServer) Route(path string, f func(rsp *Response, req *Request) (uint, error)) {
 	a.defaultHandler.route(path, f)
 }
 
+// DynamicRoute register a dynamic urlpath
+// e.g.
+//     pattern is /a/b/c/{id}/d/{name}
+//     and urlpath is     /a/b/c/123/d/frank
+//
+//    func test(rsp *Response, req *Request) (uint, error) {
+//        id := req.GetDynamicParam["id"]  // id is 123(string)
+//        name := req.GetDynamicParam["name"]  // name is frank(string)
+//        ...  // do what you want as usual  ioutil.ReadAll(req.Body)  or  req.ParseForm()
+//        return statusCode, error
+//    }
 func (a *HTTPServer) DynamicRoute(pattern string, f func(rsp *Response, req *Request) (uint, error)) {
 	a.defaultHandler.dynamicRoute(pattern, f)
 }
 
+// DynamicFilter register a dynamic urlpath
+// e.g.
+//    pattern is /a/b/c/{id}/d/{name}
+//    and urlpath is  /a/b/c/123/d/frank
+//
+//    func test(rsp *Response, req *Request) bool {
+//        id := req.GetDynamicParam["id"]  // id is 123(string)
+//        name := req.GetDynamicParam["name"] // name is frank(string)
+//        ...  // do what you want
+//        return passornot
+//    }
 func (a *HTTPServer) DynamicFilter(pattern string, f Filter) {
 	a.defaultHandler.dynamicFilter(pattern, f)
 }
 
+// Filter register a filter with as static urlpath
 func (a *HTTPServer) Filter(path string, f Filter) {
 	a.defaultHandler.filter(path, f)
 }
 
+// NotFound set your 404 handler function
 func (a *HTTPServer) NotFound(f func(rsp *Response, req *Request) (uint, error)) {
 	a.defaultHandler.notFound = f
 }
 
+// ServeHTTP launch a http serve
 func (a *HTTPServer) ServeHTTP() {
 	a.defaultHandler.prepare()
 	if !a.block {
@@ -371,6 +434,7 @@ func (a *HTTPServer) ServeHTTP() {
 	a.doServeHTTP()
 }
 
+// ServeHTTPS launch a https serve
 func (a *HTTPServer) ServeHTTPS(certFile, keyFile string) {
 	a.defaultHandler.prepare()
 	if !a.block {
@@ -396,11 +460,14 @@ func (a *HTTPServer) doServeHTTPS(certFile, keyFile string) {
 	}
 }
 
+// Shutdown shutdown server and then call finish
 func (a *HTTPServer) Shutdown() {
-	err := a.s.Shutdown(context.TODO())
-	a.finish(err)
+	a.finish(a.s.Shutdown(context.TODO()))
 }
 
+// Finish set your finish function
+// the finish function will be called after serve has been shutdown
+// e is returned by server.Shutdown()
 func (a *HTTPServer) Finish(f func(e error)) {
 	a.block = false
 	a.finish = f
