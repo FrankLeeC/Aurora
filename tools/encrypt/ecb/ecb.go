@@ -31,8 +31,8 @@ import (
 	"errors"
 )
 
-func Decrypt(crypted, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+func Decrypt(crypted []byte, key string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return nil, err
 	}

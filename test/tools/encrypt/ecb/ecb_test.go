@@ -18,7 +18,7 @@ func TestECB(t *testing.T) {
 	}
 	text := base64.StdEncoding.EncodeToString(crypted)
 	t.Log(text)
-	plain, err := ecb.Decrypt(crypted, []byte(key))
+	plain, err := ecb.Decrypt(crypted, key)
 	if err != nil {
 		t.Error(err.Error())
 		return
