@@ -28,35 +28,34 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"errors"
 )
 
-func Decrypt(crypted []byte, key string) ([]byte, error) {
+func Decrypt(crypted []byte, key string) []byte {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	blockMode := newDecrypter(block)
 	origData := make([]byte, len(crypted))
 	blockMode.CryptBlocks(origData, crypted)
 	origData = pkcs5UnPadding(origData)
-	return origData, nil
+	return origData
 }
 
-func Encrypt(src, key string) ([]byte, error) {
+func Encrypt(src, key string) []byte {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	if src == "" {
-		return nil, errors.New("plain content is empty")
+		panic("plain text is empty")
 	}
 	ecb := newEncrypter(block)
 	content := []byte(src)
 	content = pkcs5Padding(content, block.BlockSize())
 	crypted := make([]byte, len(content))
 	ecb.CryptBlocks(crypted, content)
-	return crypted, nil
+	return crypted
 }
 
 func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
