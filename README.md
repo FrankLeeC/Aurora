@@ -283,7 +283,7 @@ SELECT * FROM T_TEST
 A = #id#
 --- endif
 --- ifnotnil [b]
-B = #b#
+and B = #b#
 --- endif
 --- endwhere
 
@@ -295,6 +295,29 @@ m := orm.M{"id": 2, "b": "123"}
 // m := orm.M{"id": 2}
 // m := orm.M{"id": 7}
 count, err := orm.InitGQL().Use("SelectWhere").M(m).All(&rs)
+```
+
+
+```go
+--- [SelectWhere2]
+SELECT * FROM T_TEST
+--- where
+--- ifnotnil [b]
+and B = #b#
+--- endif
+--- if [id < 5]
+or (A = #id# and 1 = 1)
+--- endif
+--- endwhere
+
+orm.RegisterDataSource("xxx", uri, nil)  // 第三个参数是*orm.Option 设置连接池大小(默认10)，最大空闲数(默认3)， 最长生命周期(默认5分钟)
+orm.SHOWSQL = true  // 在当前目录的AURORA_ORM_LOG下可以查看orm.log，包含sql，参数以及执行时间
+var rs []Test
+m := orm.M{"id": 1, "b": "123"}
+// m := orm.M{"id": 7, "b": "3"}
+// m := orm.M{"id": 2}
+// m := orm.M{"id": 7}
+count, err := orm.InitGQL().Use("SelectWhere2").M(m).All(&rs)
 ```
 
 删除
