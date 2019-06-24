@@ -390,7 +390,6 @@ count, err := orm.InitGQL().Use("UpdateSet").M(m).Update().Result()
 ```
 
 注意事项：
-***如果使用 --- where，条件前不需要自己添加AND！***
 ***如果使用 --- set，语句后不需要自己添加逗号！***
 
 
