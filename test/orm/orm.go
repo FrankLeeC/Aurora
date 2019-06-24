@@ -19,10 +19,10 @@ type Test struct {
 
 func init() {
 	orm.SHOWSQL = true
-	err := orm.RegisterDataSource("default", "root:xxx@tcp(127.0.0.1:3306)/aurora?loc=Local", nil)
-	if err != nil {
-		log.Printf("register error: %s\n", err.Error())
-	}
+	// err := orm.RegisterDataSource("default", "root:xxx@tcp(127.0.0.1:3306)/aurora?loc=Local", nil)
+	// if err != nil {
+	// 	log.Printf("register error: %s\n", err.Error())
+	// }
 }
 
 func main() {
@@ -32,9 +32,10 @@ func main() {
 	// SelectIfNotNil()
 	// SelectIf()
 	// SelectWhere()
+	// SelectWhere2()
 	// DeleteCondition()
-	// UpdateCondition()
-	UpdateSet()
+	UpdateCondition()
+	// UpdateSet()
 	// Transaction()
 }
 
@@ -85,11 +86,21 @@ func SelectIf() {
 
 func SelectWhere() {
 	var rs []Test
-	// m := orm.M{"id": 1, "b": "123"}
+	m := orm.M{"id": 1, "b": "123"}
 	// m := orm.M{"id": 7, "b": "3"}
 	// m := orm.M{"id": 2}
-	m := orm.M{"id": 7}
+	// m := orm.M{"id": 7}
 	count, err := orm.InitGQL().Use("SelectWhere").M(m).All(&rs)
+	log.Printf("count: %d, err: %v, rs: %v\n", count, err, rs)
+}
+
+func SelectWhere2() {
+	var rs []Test
+	m := orm.M{"id": 1, "b": "123"}
+	// m := orm.M{"id": 7, "b": "3"}
+	// m := orm.M{"id": 2}
+	// m := orm.M{"id": 7}
+	count, err := orm.InitGQL().Use("SelectWhere2").M(m).All(&rs)
 	log.Printf("count: %d, err: %v, rs: %v\n", count, err, rs)
 }
 
@@ -105,6 +116,8 @@ func UpdateCondition() {
 	// m := orm.M{"values": [...]int{2, 3, 4, 5, 6}, "b": "222", "d": "999", "a": 0}
 	// m := orm.M{"values": [...]int{2, 3, 4, 5, 6}, "b": "999", "d": "222", "a": 2}
 	m := orm.M{"values": [...]int{2, 3, 4, 5, 6}, "b": "999", "d": "222", "a": 10, "c": time.Now()}
+	// m := orm.M{"values": [...]int{2, 3, 4, 5, 6}, "b": "999", "d": "222", "a": 7, "c": time.Now()}
+	// m := orm.M{"values": [...]int{2, 3, 4, 5, 6}, "b": "999", "a": 7, "c": time.Now()}
 	count, err := orm.InitGQL().Use("UpdateCondition").M(m).Update().Result()
 	log.Printf("count: %d, err: %v\n", count, err)
 }

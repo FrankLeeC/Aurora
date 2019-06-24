@@ -39,7 +39,8 @@ import (
 var (
 	whereRegexp    = regexp.MustCompile("(?U)---\\s*where")
 	whereEndRegexp = regexp.MustCompile("---\\s*endwhere")
-	andRegexp      = regexp.MustCompile("(?U)and\\s+|And\\s+|AND\\s+")
+	andRegexp      = regexp.MustCompile("(?U)and\\s+|And\\s+|AND\\s+|ANd\\s+|AnD\\s+|aND\\s+|aNd\\s+|anD\\s+")
+	orRegexp       = regexp.MustCompile("(?U)or\\s+|Or\\s+|oR\\s+|OR\\s+")
 	// ifNotNilRegexp  = regexp.MustCompile("(?U)---\\s*ifnotnil\\s+\\[.*\\].*---\\s*endif") // shortest match
 	ifNotNilRegexp = regexp.MustCompile("(?U)---\\s*ifnotnil\\s+\\[.*\\]") // shortest match
 	ifEndRegexp    = regexp.MustCompile("---\\s*endif")

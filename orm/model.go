@@ -460,9 +460,9 @@ func (a *whereHandler) handle(m M, tm map[string]string, kvs []kv) (string, []in
 			return "", nil, err
 		}
 		v1 = strings.TrimSpace(v1)
-		if andRegexp.MatchString(v1) {
-			v1 = v1[4:]
-		}
+		// if andRegexp.MatchString(v1) {
+		// 	v1 = v1[4:]
+		// }
 		tmpArr = append(tmpArr, v1)
 		tmpHArr = append(tmpHArr, a.l[i].name())
 		if v2 != nil {
@@ -481,13 +481,20 @@ func (a *whereHandler) handle(m M, tm map[string]string, kvs []kv) (string, []in
 		return "", nil, nil
 	}
 	var realBuf bytes.Buffer
+	if andRegexp.MatchString(realArr[0]) {
+		realArr[0] = realArr[0][4:]
+	} else if orRegexp.MatchString(realArr[0]) {
+		realArr[0] = realArr[0][3:]
+	}
 	realBuf.WriteString(space + realArr[0] + space)
 	for k := 1; k < len(realArr); k++ {
-		if realHArr[k] != "rangeHandler" {
-			realBuf.WriteString(space + "AND" + space + realArr[k])
-		} else {
-			realBuf.WriteString(space + realArr[k])
-		}
+		// if realHArr[k] != "rangeHandler" {
+		// 	// realBuf.WriteString(space + "AND" + space + realArr[k])
+		// 	realBuf.WriteString(space + realArr[k])
+		// } else {
+		// 	realBuf.WriteString(space + realArr[k])
+		// }
+		realBuf.WriteString(space + realArr[k])
 	}
 	// buf.WriteString(strings.Join(realArr, space+"AND"+space))
 	if strings.TrimSpace(realBuf.String()) == "" {

@@ -45,10 +45,20 @@ SELECT * FROM T_TEST
 A = #id#
 --- endif
 --- ifnotnil [b]
-B = #b#
+and B = #b#
 --- endif
 --- endwhere
 
+--- [SelectWhere2]
+SELECT * FROM T_TEST
+--- where
+--- ifnotnil [b]
+and B = #b#
+--- endif
+--- if [id < 5]
+or (A = #id# and 1 = 1)
+--- endif
+--- endwhere
 
 
 --- [DeleteCondition]
@@ -67,12 +77,12 @@ UPDATE T_TEST SET B = #b#
 --- endif
 --- where
 --- ifnotnil [d]
-B = #d#
+AnD B = #d#
 --- endif
 --- if [a > 9]
-A > #a#
+oR A > #a#
 --- endif
-A IN
+OR A IN
 --- range [values, item, (, )]
 #item#
 --- endrange
