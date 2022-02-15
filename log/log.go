@@ -141,7 +141,7 @@ func NewLogger(path string, option *LoggerOption) *Logger {
 		dir := filePath[0:i]
 		_, e := fileExists(dir)
 		if !e {
-			os.MkdirAll(dir, 666)
+			os.MkdirAll(dir, 755)
 		}
 	}
 	var file *os.File
@@ -150,7 +150,7 @@ func NewLogger(path string, option *LoggerOption) *Logger {
 		file, err = os.Create(path)
 		creTime = time.Now()
 	} else {
-		file, err = os.OpenFile(filePath, os.O_RDWR|os.O_APPEND, 0666)
+		file, err = os.OpenFile(filePath, os.O_RDWR|os.O_APPEND, 0755)
 		creTime = fi.ModTime()
 	}
 	panicErr(err)
@@ -386,41 +386,6 @@ func rename(path string, isRotate bool, modDay string) {
 		newName = dir + string(filepath.Separator) + name + "_" + day + "_" + strconv.Itoa(r)
 	}
 	os.Rename(path, newName)
-}
-
-// Traceln trace level console logs
-func Traceln(format string, a ...interface{}) {
-	header := prepareHeader(fmt.Sprintf("\x1b[%dm%s\x1b[0m", green, "[TRACE]"), nil)
-	s := fmt.Sprintf(header+format, a...)
-	fmt.Println(s)
-}
-
-// Infoln info level console logs
-func Infoln(format string, a ...interface{}) {
-	header := prepareHeader(fmt.Sprintf("\x1b[%dm%s\x1b[0m", blue, "[INFO]"), nil)
-	s := fmt.Sprintf(header+format, a...)
-	fmt.Println(s)
-}
-
-// Warnln warn level console logs
-func Warnln(format string, a ...interface{}) {
-	header := prepareHeader(fmt.Sprintf("\x1b[%dm%s\x1b[0m", yellow, "[WARN]"), nil)
-	s := fmt.Sprintf(header+format, a...)
-	fmt.Println(s)
-}
-
-// Errorln error level console logs
-func Errorln(format string, a ...interface{}) {
-	header := prepareHeader(fmt.Sprintf("\x1b[%dm%s\x1b[0m", magenta, "[ERROR]"), nil)
-	s := fmt.Sprintf(header+format, a...)
-	fmt.Println(s)
-}
-
-// Fatalln fatal level console logs
-func Fatalln(format string, a ...interface{}) {
-	header := prepareHeader(fmt.Sprintf("\x1b[%dm%s\x1b[0m", red, "[FATAL]"), nil)
-	s := fmt.Sprintf(header+format, a...)
-	fmt.Println(s)
 }
 
 // write write log
